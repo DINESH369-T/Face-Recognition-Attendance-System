@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Apply for Leave / OD - {{ student.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 15px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-back {
+            background: #6c757d;
+            text-decoration: none;
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 4px;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .error-box {
+            color: #721c24;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>Request Leave / OD</h2>
+
+    <p>Submitting for: <strong>{{ student.name }}</strong></p>
+
+    <a href="{% url 'student_profile' student.id %}" class="btn-back">
+        ← Back to Profile
+    </a>
+
+    {% if error %}
+    <div class="error-box">
+        <strong>Validation Error:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <label>Request Type:</label>
+
+        <select name="leave_type" required>
+            <option value="">Select Request Type</option>
+            <option value="sick">Sick Leave</option>
+            <option value="casual">Casual Leave</option>
+            <option value="onduty">On Duty / Permission</option>
+        </select>
+
+        <label>Date:</label>
+        <input type="date" name="date" required>
+
+        <label>Reason:</label>
+        <textarea
+            name="reason"
+            rows="4"
+            required
+            placeholder="Provide clear reason for admin review..."
+        ></textarea>
+
+        <button type="submit">Submit Request</button>
+
+    </form>
+
+</div>
+
+</body>
+</html>

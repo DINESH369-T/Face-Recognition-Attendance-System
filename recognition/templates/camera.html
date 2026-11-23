@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Face Recognition Attendance Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f8f9fa; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #007bff; color: white; }
+        #msg { margin-top: 10px; font-weight: bold; color: #28a745; font-size: 1.1em; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+        input { padding: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        button { padding: 8px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; margin-right: 5px; }
+        button:hover { background: #0056b3; }
+        
+        /* Video & ROI Overlay Wrapper Styling */
+        .video-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 10px;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 2px solid #333;
+            border-radius: 6px;
+            display: block;
+        }
+        .roi-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 250px;
+            border: 3px dashed #28a745;
+            border-radius: 12px;
+            pointer-events: none;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+<div style="max-width: 600px; margin: auto; margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+    <a href="{% url 'admin_dashboard' %}"><button style="background: #17a2b8; margin: 0;">Admin Dashboard</button></a>
+    
+    {% if students %}
+    <select id="student_portal_select" style="padding: 7px; border-radius: 4px;" onchange="if(this.value) location.href='/student/' + this.value + '/'">
+        <option value="">-- Select Student Portal --</option>
+        {% for s in students %}
+        <option value="{{ s.id }}">{{ s.name }}'s Portal & Leave</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+</div>
+
+<div class="container">
+    <h2>Face Recognition Attendance</h2>
+
+    <input id="student_name" placeholder="Enter Name for Registration"><br>
+    
+    <!-- Video Stream with Centered ROI Guide Overlay -->
+    <div class="video-wrapper">
+        <video id="video" autoplay playsinline></video>
+        <div class="roi-box"></div>
+    </div><br>
+
+    <div style="margin-top: 10px;">
+        <button onclick="snap('register')">Capture & Register</button>
+        <button onclick="snap('train')">Train Model</button>
+        <button onclick="snap('recognize')">Mark Attendance</button>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+    <p id="msg"></p>
+</div>
+
+<div class="container" style="max-width: 800px; margin-top: 30px;">
+    <h3>Today's Attendance</h3>
+
+    <a href="{% url 'export_csv' %}">
+        <button style="background: #28a745; margin-bottom: 10px; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer;">Export to CSV</button>
+    </a>
+    <table id="attendance_table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Check-In</th>
+                <th>Check-Out</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const msg = document.getElementById('msg');
+
+navigator.mediaDevices.getUserMedia({video: true})
+    .then(stream => video.srcObject = stream)
+    .catch(err => alert("Camera error: " + err));
+
+async function snap(url){
+    const name = document.getElementById("student_name").value;
+
+    if(!name && url === "register"){
+        msg.innerText = "Please enter student name first!";
+        return;
+    }
+
+    const roiWidth = 200;
+    const roiHeight = 250;
+    canvas.width = roiWidth;
+    canvas.height = roiHeight;
+    const c = canvas.getContext('2d');
+    const vWidth = video.videoWidth || 640;
+    const vHeight = video.videoHeight || 480;
+    const sx = (vWidth - roiWidth) / 2;
+    const sy = (vHeight - roiHeight) / 2;
+
+    let postData = { student_name: name };
+
+    if (url === "recognize") {
+        msg.innerText = "Capturing burst frames (Hold still)...";
+        
+        // Capture 3 frames with 150ms intervals for burst voting
+        for (let i = 1; i <= 3; i++) {
+            c.drawImage(video, sx, sy, roiWidth, roiHeight, 0, 0, roiWidth, roiHeight);
+            postData[`image${i}`] = canvas.toDataURL("image/jpeg");
+            await new Promise(resolve => setTimeout(resolve, 150));
+        }
+    } else {
+        // Single frame capture for register or train
+        c.drawImage(video, sx, sy, roiWidth, roiHeight, 0, 0, roiWidth, roiHeight);
+        postData["image"] = canvas.toDataURL("image/jpeg");
+    }
+
+    fetch("/"+url+"/", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams(postData)
+    })
+    .then(r => r.json())
+    .then(d => {
+        msg.innerText = d.msg;
+        fetchAttendance();
+    });
+}
+
+function fetchAttendance(){
+    fetch("/attendance_status/")
+        .then(r => r.json())
+        .then(d => {
+            const tbody = document.querySelector("#attendance_table tbody");
+            tbody.innerHTML = "";
+            d.attendance.forEach(a => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${a.student_name}</td>
+                    <td>${a.check_in || "-"}</td>
+                    <td>${a.check_out || "-"}</td>
+                    <td>${a.status}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        });
+}
+
+setInterval(fetchAttendance, 5000);
+fetchAttendance();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            padding: 15px;
+            border-radius: 6px;
+            flex: 1;
+            text-align: center;
+            margin: 0 5px;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-scanner {
+            background: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .btn-calendar {
+            background: #17a2b8;
+            margin-bottom: 15px;
+        }
+
+        .btn-approve {
+            background: #28a745;
+            padding: 5px 10px;
+        }
+
+        .btn-reject {
+            background: #dc3545;
+            padding: 5px 10px;
+        }
+
+        .action-form {
+            display: inline-block;
+            margin: 2px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>Admin Dashboard - Attendance Analytics</h2>
+    <div>
+        <a href="{% url 'camera_view' %}" class="btn btn-scanner">
+            ← Back to Scanner
+        </a>
+        <a href="{% url 'admin_student_list' %}" class="btn btn-calendar">
+            👥 Students Directory
+        </a>
+    </div>
+    <!-- Attendance Statistics -->
+    <div class="stats" style="margin-top: 10px;">
+        <div class="card" style="background: #007bff;">
+            <h3>Total: {{ total_students }}</h3>
+        </div>
+        <div class="card" style="background: #28a745;">
+            <h3>Present: {{ present_count }}</h3>
+        </div>
+        <div class="card" style="background: #ffc107;">
+            <h3>Late: {{ late_count }}</h3>
+        </div>
+        <div class="card" style="background: #dc3545;">
+            <h3>Absent: {{ absent_count }}</h3>
+        </div>
+
+    </div>
+    <!-- Attendance Chart -->
+    <div style="width: 350px; margin: auto;">
+        <canvas id="attendanceChart"></canvas>
+    </div>
+    <!-- Pending Leave Requests -->
+    <h3 style="margin-top: 30px;">
+        Pending Leave / Permission Requests
+    </h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Reason</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in pending_leaves %}
+            <tr>
+                <td>{{ l.student.name }}</td>
+                <td>{{ l.get_leave_type_display }}</td>
+                <td>{{ l.date }}</td>
+                <td>{{ l.reason }}</td>
+                <td>
+                    <!-- Approve Request -->
+                    <form method="POST"
+                          action="{% url 'handle_leave' l.id 'approve' %}"
+                          class="action-form">
+
+                        {% csrf_token %}
+
+                        <button type="submit" class="btn btn-approve">
+                            Approve
+                        </button>
+
+                    </form>
+
+                    <!-- Reject Request -->
+                    <form method="POST"
+                          action="{% url 'handle_leave' l.id 'reject' %}"
+                          class="action-form">
+
+                        {% csrf_token %}
+
+                        <button type="submit" class="btn btn-reject">
+                            Reject
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">
+                    No pending leave requests.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Chart.js -->
+<script>
+
+const ctx = document.getElementById('attendanceChart').getContext('2d');
+
+new Chart(ctx, {
+
+    type: 'doughnut',
+
+    data: {
+
+        labels: ['Present', 'Late', 'Absent'],
+
+        datasets: [{
+
+            data: [
+                {{ present_count }},
+                {{ late_count }},
+                {{ absent_count }}
+            ],
+
+            backgroundColor: [
+                '#28a745',
+                '#ffc107',
+                '#dc3545'
+            ]
+        }]
+    }
+});
+
+</script>
+
+</body>
+</html>

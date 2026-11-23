@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Registered Students</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #007bff; color: white; text-align: center; }
+        td { text-align: center; }
+        .btn { padding: 6px 12px; background: #17a2b8; color: white; text-decoration: none; border-radius: 4px; display: inline-block; }
+        .btn:hover { background: #138496; }
+        .btn-back { background: #6c757d; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Registered Students Directory</h2>
+    <a href="{% url 'admin_dashboard' %}"><button class="btn btn-back">← Back to Dashboard</button></a>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Student Name</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr>
+                <td>{{ s.id }}</td>
+                <td><strong>{{ s.name }}</strong></td>
+                <td>
+                    <a href="{% url 'student_profile' s.id %}" class="btn">View Calendar & Portal</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">No students registered yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>
